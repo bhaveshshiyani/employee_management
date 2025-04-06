@@ -33,7 +33,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
         employeeModel = widget.employee != null
             ? EmployeeModel.fromEntity(widget.employee!.employee)
             : EmployeeModel.blank();
-        if(widget.employee != null){
+        if (widget.employee != null) {
           employeeModel.role = widget.employee?.role;
         }
       });
@@ -41,30 +41,61 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   }
 
   void _delete() {
-    context
-        .read<EmployeeCubit>()
-        .deleteEmployee(employeeModel.id);
+    context.read<EmployeeCubit>().deleteEmployee(employeeModel.id);
     Navigator.pop(context);
   }
-  void _save() {
-    final emp = EmployeesCompanion(
-      id: employeeModel.id < 0 ? Value(employeeModel.id) : const Value.absent(),
-      name: Value(employeeModel.name),
-      roleId: Value(employeeModel.role?.id ?? 0),
-      fromDate: Value(employeeModel.fromDate ?? DateTime.now()),
-      toDate: Value(employeeModel.toDate),
-      isCurrentlyWorking: Value(employeeModel.toDate == null ? true : false),
-    );
 
-    if (widget.employee == null) {
-      context.read<EmployeeCubit>().addEmployee(emp);
+  bool checkValidation() {
+    if (employeeModel.name.trim().isEmpty) {
+      showMessage("Please enter employee name.");
+      return false;
+    } else if ((employeeModel.role?.id ?? 0) <= 0) {
+      showMessage("Please select employee role.");
+      return false;
+    } else if (employeeModel.fromDate == null) {
+      showMessage("Please select employee joining date.");
+      return false;
     } else {
-      context
-          .read<EmployeeCubit>()
-          .updateEmployee(widget.employee!.employee.id, emp);
+      return true;
     }
+  }
 
-    Navigator.pop(context);
+  showMessage(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+              fontWeight: FontWeight.w400, fontSize: 15, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  void _save() {
+    if (checkValidation()) {
+      final emp = EmployeesCompanion(
+        id: employeeModel.id < 0
+            ? Value(employeeModel.id)
+            : const Value.absent(),
+        name: Value(employeeModel.name),
+        roleId: Value(employeeModel.role?.id ?? 0),
+        fromDate: Value(employeeModel.fromDate ?? DateTime.now()),
+        toDate: Value(employeeModel.toDate),
+        isCurrentlyWorking: Value(employeeModel.toDate == null ? true : false),
+      );
+
+      if (widget.employee == null) {
+        context.read<EmployeeCubit>().addEmployee(emp);
+      } else {
+        context
+            .read<EmployeeCubit>()
+            .updateEmployee(widget.employee!.employee.id, emp);
+      }
+
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -75,18 +106,18 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
           title: Text(widget.employee == null
               ? 'Add Employee Details'
               : 'Edit Employee Details'),
-      actions: [
-        if(widget.employee != null)
-          InkWell(
-            onTap:_delete,
-            child: Image.asset(
-              "assets/images/delete_icon.png",
-              width: 24,
-              height: 24,
-            ),
-          ),
-        SizedBox(width: 16)
-      ]),
+          actions: [
+            if (widget.employee != null)
+              InkWell(
+                onTap: _delete,
+                child: Image.asset(
+                  "assets/images/delete_icon.png",
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+            SizedBox(width: 16)
+          ]),
       body: _roles.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Container(
@@ -99,12 +130,14 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     commonDecoration(
                         "assets/images/emp_name_icon.png",
                         TextFormField(
+                          maxLength: 100,
                           textCapitalization: TextCapitalization.words,
                           controller:
                               TextEditingController(text: employeeModel.name),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
+                              counterText: '',
                               hintText: 'Employee name',
-                              hintStyle: TextStyle(
+                              hintStyle: const TextStyle(
                                   fontWeight: FontWeight.w400,
                                   fontSize: 16,
                                   color: AppTheme.hintColor),
@@ -136,11 +169,17 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                           "assets/images/role_icon.png",
                           Padding(
                             padding: const EdgeInsets.only(left: 16.0),
-                            child: Text((employeeModel.role?.title ?? "").isNotEmpty?(employeeModel.role?.title ?? ""):"Select role",
-                            style: TextStyle(
-                                fontWeight: FontWeight.w400,
-                                fontSize: 16,
-                                color: (employeeModel.role?.title ?? "").isNotEmpty?AppTheme.textColor:AppTheme.hintColor)),
+                            child: Text(
+                                (employeeModel.role?.title ?? "").isNotEmpty
+                                    ? (employeeModel.role?.title ?? "")
+                                    : "Select role",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 16,
+                                    color: (employeeModel.role?.title ?? "")
+                                            .isNotEmpty
+                                        ? AppTheme.textColor
+                                        : AppTheme.hintColor)),
                           ),
                           true),
                     ),
@@ -179,7 +218,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                                     style: TextStyle(
                                         fontWeight: FontWeight.w400,
                                         fontSize: 16,
-                                        color:AppTheme.textColor)),
+                                        color: AppTheme.textColor)),
                               ),
                               false),
                         )),
@@ -206,7 +245,10 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                                             BorderRadius.circular(16)),
                                     child: CustomDatePicker(
                                       isToDate: true,
-                                      initialDate: (employeeModel.fromDate!=null)?employeeModel.fromDate:DateTime.now(),
+                                      initialDate:
+                                          (employeeModel.fromDate != null)
+                                              ? employeeModel.fromDate
+                                              : DateTime.now(),
                                       onDateSelected: (pickedDate) {
                                         setState(() {
                                           employeeModel.toDate = pickedDate;
@@ -227,15 +269,15 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                                       style: TextStyle(
                                           fontWeight: FontWeight.w400,
                                           fontSize: 16,
-                                          color:(employeeModel.toDate!=null)?AppTheme.textColor:AppTheme.hintColor)),
+                                          color: (employeeModel.toDate != null)
+                                              ? AppTheme.textColor
+                                              : AppTheme.hintColor)),
                                 ),
                                 false),
                           ),
                         )
                       ],
                     ),
-
-
                   ],
                 ),
               ),
@@ -262,7 +304,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     fixedSize: Size(100, 48),
                     elevation: 0,
                   ),
-                  onPressed: (){
+                  onPressed: () {
                     Navigator.pop(context);
                   },
                   child: const Text('Cancel',
