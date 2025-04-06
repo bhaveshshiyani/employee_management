@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:employee_management/presentation/widgets/role_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -6,7 +7,7 @@ import '../../bloc/employee_cubit.dart';
 import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../../model/employee_model.dart';
-import '../widgets/date_picker.dart';
+import '../widgets/custom_date_picker.dart';
 
 class EmployeeFormPage extends StatefulWidget {
   final EmployeeWithRole? employee;
@@ -18,9 +19,9 @@ class EmployeeFormPage extends StatefulWidget {
 }
 
 class _EmployeeFormPageState extends State<EmployeeFormPage> {
-
-  late List<Role> _roles;
+  List<Role> _roles = [];
   EmployeeModel employeeModel = EmployeeModel.blank();
+
   @override
   void initState() {
     super.initState();
@@ -32,27 +33,29 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
         employeeModel = widget.employee != null
             ? EmployeeModel.fromEntity(widget.employee!.employee)
             : EmployeeModel.blank();
-        employeeModel.role ??= _roles.firstOrNull;
-        
-        // temp
-        employeeModel.toDate = DateTime.now();
-        employeeModel.fromDate =  DateTime(2020, 4, 5);
+        if(widget.employee != null){
+          employeeModel.role = widget.employee?.role;
+        }
       });
     });
   }
 
+  void _delete() {
+    context
+        .read<EmployeeCubit>()
+        .deleteEmployee(employeeModel.id);
+    Navigator.pop(context);
+  }
   void _save() {
-
     final emp = EmployeesCompanion(
-      id: employeeModel.id < 0
-          ? Value(employeeModel.id)
-          : const Value.absent(),
+      id: employeeModel.id < 0 ? Value(employeeModel.id) : const Value.absent(),
       name: Value(employeeModel.name),
-      roleId: Value(employeeModel.role?.id??0),
-      fromDate: Value(employeeModel.fromDate??DateTime.now()),
+      roleId: Value(employeeModel.role?.id ?? 0),
+      fromDate: Value(employeeModel.fromDate ?? DateTime.now()),
       toDate: Value(employeeModel.toDate),
-      isCurrentlyWorking: Value(employeeModel.fromDate==null?true:false),
+      isCurrentlyWorking: Value(employeeModel.toDate == null ? true : false),
     );
+
     if (widget.employee == null) {
       context.read<EmployeeCubit>().addEmployee(emp);
     } else {
@@ -68,11 +71,23 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          leading: Container(),
+          automaticallyImplyLeading: false,
           title: Text(widget.employee == null
               ? 'Add Employee Details'
-              : 'Edit Employee Details')),
-      body: _roles == null
+              : 'Edit Employee Details'),
+      actions: [
+        if(widget.employee != null)
+          InkWell(
+            onTap:_delete,
+            child: Image.asset(
+              "assets/images/delete_icon.png",
+              width: 24,
+              height: 24,
+            ),
+          ),
+        SizedBox(width: 16)
+      ]),
+      body: _roles.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Container(
               color: Colors.white,
@@ -84,7 +99,9 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     commonDecoration(
                         "assets/images/emp_name_icon.png",
                         TextFormField(
-                          controller: TextEditingController(text: employeeModel.name),
+                          textCapitalization: TextCapitalization.words,
+                          controller:
+                              TextEditingController(text: employeeModel.name),
                           decoration: const InputDecoration(
                               hintText: 'Employee name',
                               hintStyle: TextStyle(
@@ -97,23 +114,33 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                         false),
                     const SizedBox(height: 24),
                     InkWell(
-                      onTap: () {},
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(16)),
+                          ),
+                          builder: (context) => RoleSelection(
+                            onRoleSelection: (role) {
+                              setState(() {
+                                employeeModel.role = role;
+                              });
+                            },
+                            roles: _roles,
+                          ),
+                        );
+                      },
                       child: commonDecoration(
                           "assets/images/role_icon.png",
-                          TextFormField(
-                            controller: TextEditingController(text: employeeModel.role?.title??""),
-                            readOnly: true,
-                            decoration: const InputDecoration(
-                                hintText: 'Select role',
-                                hintStyle: TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 16,
-                                    color: AppTheme.hintColor),
-                                border: InputBorder.none),
-                            validator: (value) =>
-                                value == null || value.isEmpty
-                                    ? 'Select role'
-                                    : null,
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16.0),
+                            child: Text((employeeModel.role?.title ?? "").isNotEmpty?(employeeModel.role?.title ?? ""):"Select role",
+                            style: TextStyle(
+                                fontWeight: FontWeight.w400,
+                                fontSize: 16,
+                                color: (employeeModel.role?.title ?? "").isNotEmpty?AppTheme.textColor:AppTheme.hintColor)),
                           ),
                           true),
                     ),
@@ -122,23 +149,37 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                       children: [
                         Expanded(
                             child: InkWell(
-                          onTap: () {},
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) {
+                                return Dialog(
+                                  insetPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16)),
+                                  child: CustomDatePicker(
+                                    isToDate: false,
+                                    initialDate: DateTime.now(),
+                                    onDateSelected: (pickedDate) {
+                                      setState(() {
+                                        employeeModel.fromDate = pickedDate;
+                                      });
+                                    },
+                                  ),
+                                );
+                              },
+                            );
+                          },
                           child: commonDecoration(
                               "assets/images/date_icon.png",
-                              TextFormField(
-                                controller: TextEditingController(text: employeeModel.fromDate.toString()??""),
-                                readOnly: true,
-                                decoration: const InputDecoration(
-                                    hintText: 'From date',
-                                    hintStyle: TextStyle(
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16.0),
+                                child: Text(employeeModel.getFromDate(),
+                                    style: TextStyle(
                                         fontWeight: FontWeight.w400,
                                         fontSize: 16,
-                                        color: AppTheme.hintColor),
-                                    border: InputBorder.none),
-                                validator: (value) =>
-                                    value == null || value.isEmpty
-                                        ? 'From date'
-                                        : null,
+                                        color:AppTheme.textColor)),
                               ),
                               false),
                         )),
@@ -153,23 +194,40 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                         ),
                         Expanded(
                           child: InkWell(
-                            onTap: () {},
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) {
+                                  return Dialog(
+                                    insetPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(16)),
+                                    child: CustomDatePicker(
+                                      isToDate: true,
+                                      initialDate: (employeeModel.fromDate!=null)?employeeModel.fromDate:DateTime.now(),
+                                      onDateSelected: (pickedDate) {
+                                        setState(() {
+                                          employeeModel.toDate = pickedDate;
+                                          employeeModel.isCurrentlyWorking =
+                                              (employeeModel.toDate == null);
+                                        });
+                                      },
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                             child: commonDecoration(
                                 "assets/images/date_icon.png",
-                                TextFormField(
-                                  controller: TextEditingController(text: employeeModel.toDate.toString()??""),
-                                  readOnly: true,
-                                  decoration: const InputDecoration(
-                                      hintText: 'No date',
-                                      hintStyle: TextStyle(
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16.0),
+                                  child: Text(employeeModel.getToDate(),
+                                      style: TextStyle(
                                           fontWeight: FontWeight.w400,
                                           fontSize: 16,
-                                          color: AppTheme.hintColor),
-                                      border: InputBorder.none),
-                                  validator: (value) =>
-                                      value == null || value.isEmpty
-                                          ? 'No date'
-                                          : null,
+                                          color:(employeeModel.toDate!=null)?AppTheme.textColor:AppTheme.hintColor)),
                                 ),
                                 false),
                           ),
@@ -177,10 +235,7 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                       ],
                     ),
 
-                    /*   ElevatedButton(
-                      onPressed: _save,
-                      child: const Text('Save'),
-                    )*/
+
                   ],
                 ),
               ),
@@ -207,7 +262,9 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                     fixedSize: Size(100, 48),
                     elevation: 0,
                   ),
-                  onPressed: _save,
+                  onPressed: (){
+                    Navigator.pop(context);
+                  },
                   child: const Text('Cancel',
                       style: TextStyle(
                           fontWeight: FontWeight.w500,
@@ -241,11 +298,12 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
 
   Widget commonDecoration(String img, Widget widget, bool isDropDown) {
     return Container(
+      height: 50,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4), // Rounded corners
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: AppTheme.borderColor, // Border color
+          color: AppTheme.borderColor,
           width: 1.0,
         ),
       ),
@@ -259,7 +317,6 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
               height: 24,
             ),
           ),
-          // TextField with flexible width
           Expanded(
             child: widget,
           ),

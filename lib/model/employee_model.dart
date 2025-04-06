@@ -1,3 +1,5 @@
+import 'package:employee_management/core/utils.dart';
+
 import '../data/database.dart';
 
 class EmployeeModel {
@@ -21,7 +23,7 @@ class EmployeeModel {
         id: 0,
         name: '',
         role: null,
-        fromDate: null,
+        fromDate: DateTime.now(),
         toDate: null,
         isCurrentlyWorking: false,
       );
@@ -30,10 +32,23 @@ class EmployeeModel {
         id: employee.id,
         name: employee.name,
         role: null,
-        // will assign via `initState`
         fromDate: employee.fromDate,
         toDate: employee.toDate,
         isCurrentlyWorking: employee.isCurrentlyWorking,
       );
 
+  String getFromDate() {
+    if (UtilsHelper.areDatesSame(fromDate ?? DateTime.now(), DateTime.now())) {
+      return "Today";
+    } else {
+      return UtilsHelper.formatDate(fromDate ?? DateTime.now(), "d MMM yyyy");
+    }
+  }
+  String getToDate() {
+    if (toDate==null) {
+      return "No date";
+    } else {
+      return UtilsHelper.formatDate(toDate ?? DateTime.now(), "d MMM yyyy");
+    }
+  }
 }
